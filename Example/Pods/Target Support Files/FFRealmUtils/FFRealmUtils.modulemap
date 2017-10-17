@@ -1,0 +1,6 @@
+framework module FFRealmUtils {
+  umbrella header "FFRealmUtils-umbrella.h"
+
+  export *
+  module * { export * }
+}
