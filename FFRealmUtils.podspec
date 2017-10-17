@@ -9,7 +9,7 @@
 Pod::Spec.new do |s|
   s.name             = 'FFRealmUtils'
   s.version          = '1.0.0'
-  s.summary          = 'This library simplifies workflow with Realm and provides some helper methods for mapping via Marshal'
+  s.summary          = 'Realm and Marshal tools'
 
   s.description      = <<-DESC
 This library simplifies workflow with Realm and provides some helper methods for mapping via Marshal
