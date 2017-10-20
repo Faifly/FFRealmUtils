@@ -24,12 +24,12 @@ extension Dictionary: ValueType
 
 extension JSONParser
 {
-    fileprivate static var dictionaryKey: String
+    public static var dictionaryKey: String
     {
         return "_Marshal_DictionaryKey"
     }
     
-    fileprivate static var dictionaryValue: String
+    public static var dictionaryValue: String
     {
         return "_Marshal_DictionaryValue"
     }
@@ -117,6 +117,102 @@ extension MarshaledObject
             return Realm.shared.objects(T.self).filter("\(idKey) == %@", id).first
         })
     }
+    
+    public func idMap<T: Object, K: ValueType>(forKey key: KeyType, idKey: KeyType, idType: K.Type) throws -> T?
+    {
+        let id: K? = try self.value(for: key)
+        guard let objID = id else
+        {
+            return nil
+        }
+        
+        return Realm.shared.objects(T.self).filter("\(idKey) == %@", objID).first
+    }
+    
+    public func combinedDictionaryOfDictionariesOfArrays<T: ValueType>() throws -> [T]
+    {
+        guard let dictValue = self as? [String : Any], dictValue is [String : [[String : Any]]] else
+        {
+            throw MarshalError.typeMismatchWithKey(key: "self", expected: [AnyHashable : Any].self, actual: self.self)
+        }
+        
+        var transformed: [[String : Any]] = []
+        
+        for obj in (dictValue as! [String : [[String : Any]]])
+        {
+            for var subObj in obj.value
+            {
+                subObj[JSONParser.dictionaryKey] = obj.key
+                transformed.append(subObj)
+            }
+        }
+        
+        return try transformed.map {
+            let value = try T.value(from: $0)
+            guard let element = value as? T else
+            {
+                throw MarshalError.typeMismatch(expected: T.self, actual: type(of: value))
+            }
+            return element
+        }
+    }
+    
+    public func combinedDictionaryOfDictionaries<T: ValueType>() throws -> [T]
+    {
+        guard let dict = self as? [String : [String : Any]] else
+        {
+            throw MarshalError.typeMismatch(expected: [String : [String : Any]].self, actual: self.self)
+        }
+        
+        var transformed: [[String : Any]] = []
+        for kv in dict
+        {
+            var subObj = kv.value
+            subObj[JSONParser.dictionaryKey] = kv.key
+            transformed.append(subObj)
+        }
+        
+        return try transformed.map {
+            let value = try T.value(from: $0)
+            guard let element = value as? T else
+            {
+                throw MarshalError.typeMismatch(expected: T.self, actual: type(of: value))
+            }
+            return element
+        }
+    }
+    
+    public func combinedDictionaryOfDictionaries<T: ValueType>(for key: KeyType) throws -> [T]
+    {
+        guard let dict: [String : Any] = try self.value(for: key), let dictValue = dict as? [String : [String : Any]] else
+        {
+            if self.optionalAny(for: key) != nil
+            {
+                throw MarshalError.typeMismatch(expected: [String : [String : Any]].self, actual: self.self)
+            }
+            else // If there is no such key, we shouldn't throw an error
+            {
+                return []
+            }
+        }
+        
+        var transformed: [[String : Any]] = []
+        for kv in dictValue
+        {
+            var subObj = kv.value
+            subObj[JSONParser.dictionaryKey] = kv.key
+            transformed.append(subObj)
+        }
+        
+        return try transformed.map {
+            let value = try T.value(from: $0)
+            guard let element = value as? T else
+            {
+                throw MarshalError.typeMismatch(expected: T.self, actual: type(of: value))
+            }
+            return element
+        }
+    }
 }
 
 extension Dictionary
@@ -125,7 +221,14 @@ extension Dictionary
     {
         guard let dictValue: [String : Any] = try self.value(for: key) else
         {
-            throw MarshalError.typeMismatchWithKey(key: key.stringValue, expected: [AnyHashable : Any].self, actual: self.self)
+            if self.optionalAny(for: key) != nil
+            {
+                throw MarshalError.typeMismatchWithKey(key: key.stringValue, expected: [AnyHashable : Any].self, actual: self.self)
+            }
+            else // If there is no such key, we shouldn't throw an error
+            {
+                return []
+            }
         }
         
         return try dictValue.transformDictionaryValues()
@@ -144,4 +247,64 @@ extension Dictionary
             return element
         }
     }
+    
+    public func parseValue<T: ValueType>() throws -> T
+    {
+        let value = try T.value(from: self)
+        guard let obj = value as? T else
+        {
+            throw MarshalError.typeMismatch(expected: T.self, actual: type(of: value))
+        }
+        return obj
+    }
+    
+    public func parseValue<T: ValueType>() throws -> T?
+    {
+        let value = try T.value(from: self)
+        guard let obj = value as? T else
+        {
+            return nil
+        }
+        return obj
+    }
 }
+
+extension Array
+{
+    public func parseValues<T: ValueType>() throws -> [T]
+    {
+        return try self.map {
+            let value = try T.value(from: $0)
+            guard let element = value as? T else
+            {
+                throw MarshalError.typeMismatch(expected: T.self, actual: type(of: value))
+            }
+            return element
+        }
+    }
+    
+    public func parseFlatValues<T: ValueType>() throws -> [T]
+    {
+        return try self.flatMap {
+            let value = try T.value(from: $0)
+            guard let element = value as? T else
+            {
+                return nil
+            }
+            return element
+        }
+    }
+    
+    public func parseValues<T: ValueType>() throws -> [T?]
+    {
+        return try self.map {
+            let value = try T.value(from: $0)
+            guard let element = value as? T else
+            {
+                return nil
+            }
+            return element
+        }
+    }
+}
+
