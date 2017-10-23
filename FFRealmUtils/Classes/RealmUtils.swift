@@ -113,7 +113,6 @@ extension Object
     
     public class func parseObjects<T: ValueType>(_ rawObjects: Any?) -> [T]
     {
-        let sd = Date()
         guard let rawObjects = rawObjects as? [JSONObject] else
         {
             return []

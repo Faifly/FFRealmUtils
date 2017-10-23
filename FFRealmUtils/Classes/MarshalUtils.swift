@@ -105,28 +105,26 @@ extension MarshaledObject
         }
     }
     
-    public func idMap<T: Object, K: ValueType>(forKey key: KeyType, idKey: KeyType, idType: K.Type) throws -> [T]
+    public func idMap<T: Object>(forKey key: KeyType) throws -> [T]
     {
-        let ids: [K?] = try self.value(for: key)
+        let ids: [Any?] = try self.value(for: key)
         return ids.flatMap({ id in
-            guard let id = id else
+            guard let objID = id else
             {
                 return nil
             }
-            
-            return Realm.shared.objects(T.self).filter("\(idKey) == %@", id).first
+            return Realm.shared.object(ofType: T.self, forPrimaryKey: objID)
         })
     }
     
-    public func idMap<T: Object, K: ValueType>(forKey key: KeyType, idKey: KeyType, idType: K.Type) throws -> T?
+    public func idMap<T: Object>(forKey key: KeyType) throws -> T?
     {
-        let id: K? = try self.value(for: key)
+        let id: Any? = try self.any(for: key)
         guard let objID = id else
         {
             return nil
         }
-        
-        return Realm.shared.objects(T.self).filter("\(idKey) == %@", objID).first
+        return Realm.shared.object(ofType: T.self, forPrimaryKey: objID)
     }
     
     public func combinedDictionaryOfDictionariesOfArrays<T: ValueType>() throws -> [T]
