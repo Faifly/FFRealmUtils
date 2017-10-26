@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'FFRealmUtils'
-  s.version          = '1.1.1'
+  s.version          = '1.1.2'
   s.summary          = 'Realm and Marshal tools'
 
   s.description      = <<-DESC

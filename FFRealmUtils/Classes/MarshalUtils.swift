@@ -107,7 +107,10 @@ extension MarshaledObject
     
     public func idMap<T: Object>(forKey key: KeyType) throws -> [T]
     {
-        let ids: [Any?] = try self.value(for: key)
+        guard let ids = try self.any(for: key) as? [Any?] else
+        {
+            return []
+        }
         return ids.flatMap({ id in
             guard let objID = id else
             {
