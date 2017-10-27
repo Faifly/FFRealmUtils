@@ -92,6 +92,41 @@ extension Object
 
 Each of this methods open a write transaction, parse objects as realm objects, close write transaction and handle errors. Is very useful when parsing server's response. Also, bypasses Marshal limitation, which doesn't allow to parse top level object or array.
 
+#### Realm clean up
+
+In some approaches some Realm objects have to be deleted after parsing. Mark objects which have to be cleaned up with `Disposable` protocol:
+
+```swift
+public protocol Disposable
+{
+    func disposable() -> Bool
+
+    /// Is guaranteed to be called in a write transaction
+    func willDispose()
+}
+```
+
+`willDispose()` is optional.
+
+Then disposable properties should be added to Realm with the following method:
+
+```swift
+extension Realm
+{
+    public class func addDisposableType<T: Object>(_ type: T.Type) where T: Disposable
+}
+```
+
+Clean up may be done either automatically (when one of `Object.parse`  methods is called) or manually:
+
+```swift
+extension Realm
+{
+    public static var autoCleanUp = true
+    public func cleanUp()
+}
+```
+
 ### Marshal utils
 
 #### Transforming dictionary to array.
