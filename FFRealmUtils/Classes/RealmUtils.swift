@@ -9,9 +9,22 @@ import Foundation
 import RealmSwift
 import Marshal
 
+public protocol Disposable
+{
+    func disposable() -> Bool
+    
+    /// Is guaranteed to be called in a write transaction
+    func willDispose()
+}
+
+public extension Disposable
+{
+    func willDispose() {}
+}
+
 extension Realm
 {
-    public static var shared: Realm
+    private static var sharedRealm: Realm =
     {
         do
         {
@@ -22,6 +35,11 @@ extension Realm
             print("Realm initialization error: " + error.localizedDescription)
             exit(0)
         }
+    }()
+    
+    public class var shared: Realm
+    {
+        return self.sharedRealm
     }
     
     public func finishWrite()
@@ -54,6 +72,27 @@ extension Realm
             }
         }
     }
+    
+    public static var autoCleanUp = true
+    public private(set) static var disposableEntities: [Object.Type] = []
+    
+    public class func addDisposableType<T: Object>(_ type: T.Type) where T: Disposable
+    {
+        self.disposableEntities.append(type)
+    }
+    
+    public func cleanUp()
+    {
+        self.beginWrite()
+        for type in Realm.disposableEntities
+        {
+            self.objects(type).filter({($0 as! Disposable).disposable()}).forEach({
+                ($0 as! Disposable).willDispose()
+                $0.deleteFromRealm()
+            })
+        }
+        self.finishWrite()
+    }
 }
 
 extension Object
@@ -80,6 +119,7 @@ extension Object
             Realm.shared.beginWrite()
             let value: T? = try rawObject.parseValue()
             Realm.shared.finishWrite()
+            Realm.shared.cleanUp()
             return value
         }
         catch let error
@@ -102,6 +142,7 @@ extension Object
             Realm.shared.beginWrite()
             let value: T = try rawObject.parseValue()
             Realm.shared.finishWrite()
+            Realm.shared.cleanUp()
             return value
         }
         catch
@@ -123,6 +164,7 @@ extension Object
             Realm.shared.beginWrite()
             let values: [T] = try rawObjects.parseValues()
             Realm.shared.finishWrite()
+            Realm.shared.cleanUp()
             return values
         }
         catch let error
